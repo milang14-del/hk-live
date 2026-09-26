@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="HK Live">
+<meta name="theme-color" content="#0f2027">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>HK Live — Weather & Bus</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:linear-gradient(160deg,#0f2027,#203a43,#2c5364);min-height:100vh;color:#fff;padding:16px 16px 90px}
+.wrap{max-width:820px;margin:0 auto}
+h1{font-size:22px;font-weight:800}
+.sub{font-size:12.5px;opacity:.75;margin-top:3px}
+.card{background:rgba(255,255,255,.12);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:16px;margin-bottom:14px}
+.btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;padding:8px 14px;border-radius:10px;font-size:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px;margin-top:12px}
+.stat{background:rgba(255,255,255,.1);border-radius:13px;padding:12px}
+.stat .l{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.4px}
+.stat .v{font-size:19px;font-weight:700;margin-top:3px}
+.big{font-size:56px;font-weight:850;line-height:1}
+.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:9px;margin-top:10px}
+.day{background:rgba(255,255,255,.1);border-radius:13px;padding:10px;text-align:center;font-size:12px}
+.warn{padding:9px 12px;border-radius:11px;font-size:13px;font-weight:600;margin-bottom:7px}
+.warn.red{background:#ff3b30}.warn.yellow{background:#ffcc00;color:#333}
+.row{display:flex;justify-content:space-between;background:rgba(255,255,255,.09);border-radius:11px;padding:10px 13px;font-size:14px;margin-top:7px}
+.rnum{font-size:34px;font-weight:900;line-height:1}
+.meta{font-size:12px;opacity:.62;margin-top:9px;line-height:1.6}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:rgba(12,20,28,.92);backdrop-filter:blur(18px);border-top:1px solid rgba(255,255,255,.14);padding-bottom:env(safe-area-inset-bottom);z-index:99}
+.tab{flex:1;text-align:center;padding:13px 4px;font-size:11.5px;opacity:.55;cursor:pointer;font-weight:600}
+.tab.on{opacity:1;color:#64d2ff}
+.tab .ico{display:block;font-size:21px;margin-bottom:2px}
+.pane{display:none}.pane.on{display:block;animation:f .25s}
+@keyframes f{from{opacity:0;transform:translateY(6px)}}
+.bar{height:8px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-top:12px}
+.bar i{display:block;height:100%;border-radius:99px;transition:width .6s}
+a{color:#7dd3fc}
+.stopname{display:flex;align-items:center;gap:12px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#39ff88;box-shadow:0 0 8px #39ff88;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div id="p-wx" class="pane on">
+<h1>🌤 HK Weather — Hong Kong Observatory</h1>
+<div class="sub" id="wxTime"><span class="dot"></span>loading…</div>
+<div id="warns" style="margin-top:12px"></div>
+<div class="card" id="wxCur" style="margin-top:12px">Loading…</div>
+<div class="card"><div class="grid" id="wxStats"></div><div class="meta" id="wxRain"></div></div>
+<div class="card"><b>9-Day Forecast</b><div class="days" id="wxDays"></div><div class="meta" id="wxSit"></div></div>
+</div>
+
+<div id="p-bus" class="pane">
+<h1>🚌 Bus ETA — Fu Shing Court</h1>
+<div class="sub">富盛大廈 · 柴灣道 · Stop <b>001226</b> → Central / Admiralty<br>data.gov.hk Citybus API · <span id="busClock"><span class="dot"></span>—</span></div>
+<div id="busErr" class="warn red" style="display:none;margin-top:10px"></div>
+<div class="card" style="margin-top:12px"><div class="stopname"><div class="rnum" style="color:#ff9f0a">788</div><div><b>Central (Macao Ferry)</b><div class="sub">towards Central</div></div></div><div id="bus788">Loading…</div></div>
+<div class="card"><div class="stopname"><div class="rnum" style="color:#30d158">789</div><div><b>Admiralty (Rodney Street)</b><div class="sub">towards Admiralty</div></div></div><div id="bus789">Loading…</div></div>
+<div class="meta">Auto-refresh every 30s · <a href="https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/001226/788" target="_blank">788 JSON</a> · <a href="https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/001226/789" target="_blank">789 JSON</a></div>
+</div>
+
+<div id="p-me" class="pane">
+<h1>📍 My Location Weather</h1>
+<div class="sub" id="locSub">Locating this computer / iPad…</div>
+<div style="margin-top:12px"><button class="btn" onclick="locate()">◎ Use my location</button> <button class="btn" onclick="loadLoc(22.3193,114.1694,'Hong Kong')">🇭🇰 Hong Kong</button></div>
+<div class="card" id="locCur" style="margin-top:12px">Loading…</div>
+<div class="card"><div class="grid" id="locStats"></div></div>
+<div class="card"><b>7-Day Forecast</b><div class="days" id="locDays"></div></div>
+</div>
+
+<div class="meta">Sources: <a href="https://data.gov.hk" target="_blank">data.gov.hk</a> (HKO weather + Citybus ETA) · Open-Meteo. No API keys.</div>
+</div>
+
+<div class="tabs">
+<div class="tab on" data-p="p-wx"><span class="ico">🌤</span>Weather</div>
+<div class="tab" data-p="p-bus"><span class="ico">🚌</span>Bus ETA</div>
+<div class="tab" data-p="p-me"><span class="ico">📍</span>Local</div>
+</div>
+
+<script>
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
+t.classList.add('on');document.getElementById(t.dataset.p).classList.add('on');
+});
+
+/* ---------- HKO WEATHER ---------- */
+const BASE='https://data.weather.gov.hk/weatherAPI/opendata/weather.php';
+const iconUrl=c=>`https://www.hko.gov.hk/images/HKOWxIcon/pic${c}.png`;
+const get=t=>fetch(`${BASE}?dataType=${t}&lang=en`).then(r=>r.json());
+async function loadWx(){
+try{
+const [cur,fnd,warns]=await Promise.all([get('rhrread'),get('fnd'),get('warnsum')]);
+const hko=cur.temperature.data.find(d=>d.place==='Hong Kong Observatory')||cur.temperature.data[0];
+const hum=cur.humidity.data[0],uv=cur.uvindex.data[0];
+document.getElementById('wxTime').innerHTML='<span class="dot"></span>Updated '+new Date(cur.updateTime).toLocaleString('en-GB',{timeZone:'Asia/Hong_Kong',hour12:false})+' HKT';
+document.getElementById('warns').innerHTML=Object.keys(warns).map(k=>{const w=warns[k];const c=(w.type==='Yellow')?'yellow':'red';return `<div class="warn ${c}">⚠️ ${w.name}${w.type?' ('+w.type+')':''}</div>`}).join('')||'';
+document.getElementById('wxCur').innerHTML=`<div style="display:flex;align-items:center;gap:14px"><img src="${iconUrl(cur.icon[0])}" style="width:74px;height:74px;background:rgba(255,255,255,.18);border-radius:16px" alt=""><div><div class="big">${hko.value}°C</div><div class="sub">${hko.place} · feels like ${uv?'':''}${cur.warningMessage&&cur.warningMessage.length?'very hot':'fine'}</div></div></div><div class="meta">${(cur.warningMessage||[]).join('<br>')}</div>`;
+document.getElementById('wxStats').innerHTML=`<div class="stat"><div class="l">💧 Humidity</div><div class="v">${hum.value}%</div></div><div class="stat"><div class="l">☀️ UV</div><div class="v">${uv.value} <span style="font-size:12px;font-weight:400">${uv.desc}</span></div></div><div class="stat"><div class="l">🌧️ Rain 1h</div><div class="v">${Math.max(...cur.rainfall.data.map(d=>d.max))} mm</div></div><div class="stat"><div class="l">🌡️ Hottest</div><div class="v">${Math.max(...cur.temperature.data.map(d=>d.value))}°C</div></div>`;
+document.getElementById('wxRain').textContent=cur.rainfallFrom00To12||'';
+document.getElementById('wxDays').innerHTML=fnd.weatherForecast.map(d=>`<div class="day"><b>${d.week.slice(0,3)}</b><br><span style="opacity:.6">${d.forecastDate.slice(6)}/${d.forecastDate.slice(4,6)}</span><div style="font-size:26px;margin:5px 0"><img src="${iconUrl(d.ForecastIcon)}" width="34" height="34" loading="lazy" alt=""></div><b>${d.forecastMintemp.value}° / ${d.forecastMaxtemp.value}°</b><br><span style="opacity:.7">${d.forecastWeather.split('.')[0]}</span></div>`).join('');
+document.getElementById('wxSit').textContent=fnd.generalSituation;
+}catch(e){document.getElementById('wxCur').innerHTML='⚠ '+e.message;}
+}
+
+/* ---------- BUS ETA ---------- */
+const STOP='001226';
+function hkt(){return new Date().toLocaleString('en-GB',{timeZone:'Asia/Hong_Kong',hour12:false,weekday:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'})+' HKT';}
+function mTo(iso){return (new Date(iso)-new Date())/60000;}
+function fM(m){m=Math.max(0,Math.round(m));return m<=0?'NOW':m+' min';}
+async function loadBus(){
+document.getElementById('busClock').innerHTML='<span class="dot"></span>'+hkt();
+let fail=false;
+for(const r of ['788','789']){
+try{
+const res=await fetch(`https://rt.data.gov.hk/v2/transport/citybus/eta/CTB/${STOP}/${r}`);
+if(!res.ok)throw new Error('HTTP '+res.status);
+const j=await res.json();
+const etas=(j.data||[]).filter(e=>e.eta&&e.dir==='O').sort((a,b)=>new Date(a.eta)-new Date(b.eta));
+const el=document.getElementById('bus'+r);
+if(!etas.length){el.innerHTML='<div class="row"><span>No bus scheduled at this stop right now</span></div>';continue;}
+const n=etas[0];
+el.innerHTML=`
+<div class="big" style="margin-top:10px;color:${r==='788'?'#ff9f0a':'#30d158'}" data-iso="${n.eta}">${fM(mTo(n.eta))}</div>
+<div class="sub">arriving ${new Date(n.eta).toLocaleTimeString('en-GB',{timeZone:'Asia/Hong_Kong',hour12:false,hour:'2-digit',minute:'2-digit'})} HKT</div>
+<div class="bar"><i style="width:${Math.min(100,Math.max(5,100-Math.max(0,mTo(n.eta))*6))}%;background:${r==='788'?'#ff9f0a':'#30d158'}"></i></div>
+${etas.slice(1).map(e=>`<div class="row"><span>then ${new Date(e.eta).toLocaleTimeString('en-GB',{timeZone:'Asia/Hong_Kong',hour12:false,hour:'2-digit',minute:'2-digit'})}</span><b>${fM(mTo(e.eta))}</b></div>`).join('')}`;
+}catch(e){fail=true;document.getElementById('bus'+r).innerHTML='<div class="row">⚠ '+e.message+'</div>';}
+}
+const err=document.getElementById('busErr');
+err.style.display=fail?'block':'none';
+if(fail)err.textContent='Feed unreachable — will retry automatically.';
+}
+
+/* ---------- LOCATION (Open-Meteo) ---------- */
+const WMO={0:['Clear sky','☀️'],1:['Mainly clear','🌤️'],2:['Partly cloudy','⛅'],3:['Overcast','☁️'],45:['Fog','🌫️'],48:['Rime fog','🌫️'],51:['Light drizzle','🌦️'],53:['Drizzle','🌦️'],55:['Heavy drizzle','🌧️'],61:['Light rain','🌦️'],63:['Rain','🌧️'],65:['Heavy rain','⛈️'],71:['Snow','🌨️'],73:['Snow','🌨️'],75:['Heavy snow','❄️'],80:['Showers','🌦️'],81:['Showers','🌧️'],82:['Violent showers','⛈️'],95:['Thunderstorm','⛈️'],96:['Storm+hail','⛈️']};
+const wmo=c=>WMO[c]||['—','🌡️'];
+async function loadLoc(lat,lon,label){
+document.getElementById('locSub').textContent=`${label} · ${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+const u=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`;
+const j=await(await fetch(u)).json(),c=j.current,[t,e]=wmo(c.weather_code);
+document.getElementById('locCur').innerHTML=`<div style="display:flex;align-items:center;gap:14px"><div style="font-size:48px">${e}</div><div><div class="big">${c.temperature_2m}°C</div><div class="sub">${t} · feels ${c.apparent_temperature}°C</div></div></div>`;
+document.getElementById('locStats').innerHTML=`<div class="stat"><div class="l">💧 Humidity</div><div class="v">${c.relative_humidity_2m}%</div></div><div class="stat"><div class="l">💨 Wind</div><div class="v">${c.wind_speed_10m} km/h</div></div><div class="stat"><div class="l">🌧️ Rain tmrw</div><div class="v">${j.daily.precipitation_probability_max[1]??0}%</div></div>`;
+document.getElementById('locDays').innerHTML=j.daily.time.map((k,i)=>{const[dt,de]=wmo(j.daily.weather_code[i]);return `<div class="day"><b>${new Date(k).toLocaleDateString('en',{weekday:'short'})}</b><br><span style="opacity:.6">${k.slice(5)}</span><div style="font-size:24px;margin:4px 0">${de}</div><b>${j.daily.temperature_2m_min[i]}° / ${j.daily.temperature_2m_max[i]}°</b><br><span style="opacity:.7">${dt}</span></div>`}).join('');
+}
+function locate(){
+if(!navigator.geolocation){loadLoc(22.3193,114.1694,'Hong Kong');return;}
+document.getElementById('locSub').textContent='Waiting for location permission…';
+navigator.geolocation.getCurrentPosition(async p=>{
+let label='Your location';
+try{const g=await(await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&localityLanguage=en`)).json();label=(g.city||g.locality||'')+', '+(g.countryName||'');}catch(e){}
+loadLoc(p.coords.latitude,p.coords.longitude,label);
+},()=>loadLoc(22.3193,114.1694,'Hong Kong'),{timeout:8000});
+}
+
+loadWx();loadBus();locate();
+setInterval(loadWx,120000);setInterval(loadBus,30000);
+setInterval(()=>{
+document.querySelectorAll('[data-iso]').forEach(el=>{el.textContent=fM(mTo(el.dataset.iso))});
+document.getElementById('busClock').innerHTML='<span class="dot"></span>'+hkt();
+},5000);
+</script>
+</body>
+</html>
