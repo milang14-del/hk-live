@@ -93,15 +93,18 @@ const get=t=>fetch(`${BASE}?dataType=${t}&lang=en`).then(r=>r.json());
 async function loadWx(){
 try{
 const [cur,fnd,warns]=await Promise.all([get('rhrread'),get('fnd'),get('warnsum')]);
-const hko=cur.temperature.data.find(d=>d.place==='Hong Kong Observatory')||cur.temperature.data[0];
-const hum=cur.humidity.data[0],uv=cur.uvindex.data[0];
+const temps=cur.temperature?.data||[];
+const hko=temps.find(d=>d.place==='Hong Kong Observatory')||temps[0]||{value:'—',unit:'C',place:'Hong Kong'};
+const hum=cur.humidity?.data?.[0]||null, uv=cur.uvindex?.data?.[0]||null;
+const rain=cur.rainfall?.data||[];
 document.getElementById('wxTime').innerHTML='<span class="dot"></span>Updated '+new Date(cur.updateTime).toLocaleString('en-GB',{timeZone:'Asia/Hong_Kong',hour12:false})+' HKT';
-document.getElementById('warns').innerHTML=Object.keys(warns).map(k=>{const w=warns[k];const c=(w.type==='Yellow')?'yellow':'red';return `<div class="warn ${c}">⚠️ ${w.name}${w.type?' ('+w.type+')':''}</div>`}).join('')||'';
-document.getElementById('wxCur').innerHTML=`<div style="display:flex;align-items:center;gap:14px"><img src="${iconUrl(cur.icon[0])}" style="width:74px;height:74px;background:rgba(255,255,255,.18);border-radius:16px" alt=""><div><div class="big">${hko.value}°C</div><div class="sub">${hko.place} · feels like ${uv?'':''}${cur.warningMessage&&cur.warningMessage.length?'very hot':'fine'}</div></div></div><div class="meta">${(cur.warningMessage||[]).join('<br>')}</div>`;
-document.getElementById('wxStats').innerHTML=`<div class="stat"><div class="l">💧 Humidity</div><div class="v">${hum.value}%</div></div><div class="stat"><div class="l">☀️ UV</div><div class="v">${uv.value} <span style="font-size:12px;font-weight:400">${uv.desc}</span></div></div><div class="stat"><div class="l">🌧️ Rain 1h</div><div class="v">${Math.max(...cur.rainfall.data.map(d=>d.max))} mm</div></div><div class="stat"><div class="l">🌡️ Hottest</div><div class="v">${Math.max(...cur.temperature.data.map(d=>d.value))}°C</div></div>`;
+const ic=cur.icon?.[0];
+document.getElementById('warns').innerHTML=Object.keys(warns||{}).map(k=>{const w=warns[k];const c=(w.type==='Yellow')?'yellow':'red';return `<div class="warn ${c}">⚠️ ${w.name||k}${w.type?' ('+w.type+')':''}</div>`}).join('')||'';
+document.getElementById('wxCur').innerHTML=`<div style="display:flex;align-items:center;gap:14px">${ic?`<img src="${iconUrl(ic)}" style="width:74px;height:74px;background:rgba(255,255,255,.18);border-radius:16px" alt="">`:''}<div><div class="big">${hko.value}°C</div><div class="sub">${hko.place} · updated ${new Date(cur.updateTime).toLocaleTimeString('en-GB',{timeZone:'Asia/Hong_Kong',hour12:false,hour:'2-digit',minute:'2-digit'})} HKT</div></div></div><div class="meta">${(cur.warningMessage||[]).join('<br>')||'No warnings in force.'}</div>`;
+document.getElementById('wxStats').innerHTML=`<div class="stat"><div class="l">💧 Humidity</div><div class="v">${hum?hum.value+'%':'—'}</div></div><div class="stat"><div class="l">☀️ UV</div><div class="v">${uv?uv.value:'—'} <span style="font-size:12px;font-weight:400">${uv?uv.desc:'not published yet'}</span></div></div><div class="stat"><div class="l">🌧️ Rain 1h</div><div class="v">${rain.length?Math.max(...rain.map(d=>d.max)):'—'} mm</div></div><div class="stat"><div class="l">🌡️ Hottest</div><div class="v">${temps.length?Math.max(...temps.map(d=>d.value)):'—'}°C</div></div>`;
 document.getElementById('wxRain').textContent=cur.rainfallFrom00To12||'';
-document.getElementById('wxDays').innerHTML=fnd.weatherForecast.map(d=>`<div class="day"><b>${d.week.slice(0,3)}</b><br><span style="opacity:.6">${d.forecastDate.slice(6)}/${d.forecastDate.slice(4,6)}</span><div style="font-size:26px;margin:5px 0"><img src="${iconUrl(d.ForecastIcon)}" width="34" height="34" loading="lazy" alt=""></div><b>${d.forecastMintemp.value}° / ${d.forecastMaxtemp.value}°</b><br><span style="opacity:.7">${d.forecastWeather.split('.')[0]}</span></div>`).join('');
-document.getElementById('wxSit').textContent=fnd.generalSituation;
+document.getElementById('wxDays').innerHTML=(fnd.weatherForecast||[]).map(d=>`<div class="day"><b>${d.week.slice(0,3)}</b><br><span style="opacity:.6">${d.forecastDate.slice(6)}/${d.forecastDate.slice(4,6)}</span><div style="font-size:26px;margin:5px 0">${d.ForecastIcon?`<img src="${iconUrl(d.ForecastIcon)}" width="34" height="34" loading="lazy" alt="">`:''}</div><b>${d.forecastMintemp.value}° / ${d.forecastMaxtemp.value}°</b><br><span style="opacity:.7">${(d.forecastWeather||'').split('.')[0]}</span></div>`).join('');
+document.getElementById('wxSit').textContent=fnd.generalSituation||'';
 }catch(e){document.getElementById('wxCur').innerHTML='⚠ '+e.message;}
 }
 
