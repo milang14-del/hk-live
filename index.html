@@ -97,7 +97,7 @@ const temps=cur.temperature?.data||[];
 const hko=temps.find(d=>d.place==='Hong Kong Observatory')||temps[0]||{value:'—',unit:'C',place:'Hong Kong'};
 const hum=cur.humidity?.data?.[0]||null, uv=cur.uvindex?.data?.[0]||null;
 const rain=cur.rainfall?.data||[];
-document.getElementById('wxTime').innerHTML='<span class="dot"></span>Updated '+new Date(cur.updateTime).toLocaleString('en-GB',{timeZone:'Asia/Hong_Kong',hour12:false})+' HKT';
+document.getElementById('wxTime').innerHTML='<span class="dot"></span>Updated '+new Date(cur.updateTime).toLocaleString('en-GB',{timeZone:'Asia/Hong_Kong',hour12:false})+' HKT · refreshes every 5 min';
 const ic=cur.icon?.[0];
 document.getElementById('warns').innerHTML=Object.keys(warns||{}).map(k=>{const w=warns[k];const c=(w.type==='Yellow')?'yellow':'red';return `<div class="warn ${c}">⚠️ ${w.name||k}${w.type?' ('+w.type+')':''}</div>`}).join('')||'';
 document.getElementById('wxCur').innerHTML=`<div style="display:flex;align-items:center;gap:14px">${ic?`<img src="${iconUrl(ic)}" onerror="this.style.visibility='hidden'" style="width:74px;height:74px;background:rgba(255,255,255,.18);border-radius:16px" alt="">`:''}<div><div class="big">${hko.value}°C</div><div class="sub">${hko.place} · updated ${new Date(cur.updateTime).toLocaleTimeString('en-GB',{timeZone:'Asia/Hong_Kong',hour12:false,hour:'2-digit',minute:'2-digit'})} HKT</div></div></div><div class="meta">${(cur.warningMessage||[]).join('<br>')||'No warnings in force.'}</div>`;
@@ -159,7 +159,7 @@ loadLoc(p.coords.latitude,p.coords.longitude,label);
 }
 
 loadWx();loadBus();locate();
-setInterval(loadWx,120000);setInterval(loadBus,30000);
+setInterval(loadWx,300000);setInterval(loadBus,30000); // weather every 5 min, bus every 30s
 setInterval(()=>{
 document.querySelectorAll('[data-iso]').forEach(el=>{el.textContent=fM(mTo(el.dataset.iso))});
 document.getElementById('busClock').innerHTML='<span class="dot"></span>'+hkt();
