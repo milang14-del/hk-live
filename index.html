@@ -39,6 +39,10 @@ h1{font-size:22px;font-weight:800}
 a{color:#7dd3fc}
 .stopname{display:flex;align-items:center;gap:12px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#39ff88;box-shadow:0 0 8px #39ff88;margin-right:6px}
+.field{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;padding:8px 12px;border-radius:10px;font-size:14px;flex:1;min-width:140px}
+.field::placeholder{color:rgba(255,255,255,.5)}
+select.field option{color:#000}
+.badge{display:inline-block;background:rgba(100,210,255,.18);border:1px solid rgba(100,210,255,.4);color:#9be2ff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;margin-left:8px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -70,13 +74,30 @@ a{color:#7dd3fc}
 <div class="card"><b>7-Day Forecast</b><div class="days" id="locDays"></div></div>
 </div>
 
-<div class="meta">Sources: <a href="https://data.gov.hk" target="_blank">data.gov.hk</a> (HKO weather + Citybus ETA) · Open-Meteo. No API keys.</div>
+<div id="p-pet" class="pane">
+<h1>🐶 Pet-Friendly Food — within 1 km</h1>
+<div class="sub" id="petSub">FEHD dog-permitted premises near you · <span id="petMeta">open this tab to load</span></div>
+<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+<button class="btn" onclick="locatePet()">◎ Use my location</button>
+<button class="btn" onclick="setPetAnchor(22.265804,114.245358,'Fu Shing Court, Chai Wan')">🇭🇰 Fu Shing Court</button>
+<button class="btn" onclick="loadPet()">↻ Refresh list</button>
+</div>
+<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+<input id="petQ" class="field" placeholder="Search name / address…" oninput="renderPet()">
+<select id="petCat" class="field" onchange="renderPet()"><option value="">All types</option></select>
+</div>
+<div id="petList" style="margin-top:12px"><div class="row"><span>Loading…</span></div></div>
+<div class="meta">Source: <a href="https://pawsdine.com" target="_blank">pawsdine.com</a>, from the FEHD licensed-premises list “List of premises where dogs are permitted to enter” (<a href="https://www.fehd.gov.hk/tc_chi/licensing/dog_restaurants/fulllist.pdf" target="_blank">official FEHD PDF</a>) · coordinates via data.gov.hk Address Lookup Service. Distances are straight-line from your anchor point.</div>
+</div>
+
+<div class="meta">Sources: <a href="https://data.gov.hk" target="_blank">data.gov.hk</a> (HKO weather + Citybus ETA) · Open-Meteo · <a href="https://pawsdine.com" target="_blank">pawsdine.com</a> (FEHD dog-friendly list). No API keys.</div>
 </div>
 
 <div class="tabs">
 <div class="tab on" data-p="p-wx"><span class="ico">🌤</span>Weather</div>
 <div class="tab" data-p="p-bus"><span class="ico">🚌</span>Bus ETA</div>
 <div class="tab" data-p="p-me"><span class="ico">📍</span>Local</div>
+<div class="tab" data-p="p-pet"><span class="ico">🐶</span>Pet Food</div>
 </div>
 
 <script>
@@ -84,6 +105,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
 document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
 document.querySelectorAll('.pane').forEach(x=>x.classList.remove('on'));
 t.classList.add('on');document.getElementById(t.dataset.p).classList.add('on');
+if(t.dataset.p==='p-pet')initPet();
 });
 
 /* ---------- HKO WEATHER ---------- */
@@ -156,6 +178,52 @@ let label='Your location';
 try{const g=await(await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&localityLanguage=en`)).json();label=(g.city||g.locality||'')+', '+(g.countryName||'');}catch(e){}
 loadLoc(p.coords.latitude,p.coords.longitude,label);
 },()=>loadLoc(22.3193,114.1694,'Hong Kong'),{timeout:8000});
+}
+
+/* ---------- PET-FRIENDLY RESTAURANTS (FEHD list, live via pawsdine) ---------- */
+const petState={all:[],anchor:null,inited:false,loading:false};
+function havKm(a,b,c,d){const R=6371,t=Math.PI/180;const h=Math.sin((c-a)*t/2)**2+Math.cos(a*t)*Math.cos(c*t)*Math.sin((d-b)*t/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+async function initPet(){
+if(petState.inited||petState.loading)return;
+petState.loading=true;
+try{
+const rp=await fetch('https://pawsdine.com/api/restaurants');
+if(!rp.ok)throw new Error('HTTP '+rp.status);
+const r=await rp.json();
+if(!r.success)throw new Error((r.error&&r.error.message)||'API error');
+let srcUpd='';
+try{const m=await(await fetch('https://pawsdine.com/api/meta')).json();if(m.success)srcUpd=m.data.sourceUpdated||'';}catch(e){}
+petState.all=(r.data||[]).filter(x=>x.lat!=null&&x.lng!=null);
+petState.inited=true;
+document.getElementById('petMeta').textContent=`${r.meta.count} premises · FEHD list updated ${srcUpd||'recently'}`;
+const cats=[...new Set(petState.all.map(x=>x.categoryEn||'Other'))].sort();
+document.getElementById('petCat').innerHTML='<option value="">All types</option>'+cats.map(c=>`<option>${c}</option>`).join('');
+if(!petState.anchor)petState.anchor={lat:22.265804,lon:114.245358,label:'Fu Shing Court, Chai Wan'};
+renderPet();
+}catch(e){document.getElementById('petList').innerHTML='<div class="row"><span>⚠ '+e.message+' — tap ↻ Refresh list to retry.</span></div>';}
+petState.loading=false;
+}
+function setPetAnchor(lat,lon,label){petState.anchor={lat,lon,label};renderPet();}
+function locatePet(){
+if(!navigator.geolocation){setPetAnchor(22.265804,114.245358,'Fu Shing Court, Chai Wan');return;}
+document.getElementById('petMeta').textContent='locating…';
+navigator.geolocation.getCurrentPosition(p=>{setPetAnchor(p.coords.latitude,p.coords.longitude,'Your location');},()=>setPetAnchor(22.265804,114.245358,'Fu Shing Court, Chai Wan'),{timeout:8000});
+}
+async function loadPet(){petState.inited=false;await initPet();}
+function renderPet(){
+const a=petState.anchor,list=document.getElementById('petList');
+if(!petState.inited){list.innerHTML='<div class="row"><span>Loading premises list…</span></div>';return;}
+const q=(document.getElementById('petQ').value||'').toLowerCase();
+const cat=document.getElementById('petCat').value;
+const near=petState.all.map(x=>({x,d:havKm(a.lat,a.lon,x.lat,x.lng)})).filter(o=>o.d<=1&&(!cat||(o.x.categoryEn||'Other')===cat)&&(!q||((o.x.nameEn+' '+o.x.nameZh+' '+o.x.addressEn+' '+o.x.address).toLowerCase().includes(q)))).sort((p,q2)=>p.d-q2.d);
+document.getElementById('petSub').innerHTML=`FEHD dog-permitted premises within <b>1 km</b> of <b>${a.label}</b> (${a.lat.toFixed(4)}, ${a.lon.toFixed(4)}) · <span id="petMeta">${near.length} found</span>`;
+if(!near.length){list.innerHTML='<div class="row"><span>No pet-friendly premises within 1 km — try “Use my location” or clear the search.</span></div>';return;}
+list.innerHTML=near.slice(0,30).map(o=>{const x=o.x;
+const maps=x.placeId?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x.nameEn||x.nameZh)}&query_place_id=${x.placeId}`:`https://www.google.com/maps/search/?api=1&query=${x.lat},${x.lng}`;
+const dist=o.d<1?Math.round(o.d*1000)+' m':o.d.toFixed(2)+' km';
+const zh=(x.nameZh&&x.nameZh!==x.nameEn)?`<div class="sub">${x.nameZh}</div>`:'';
+return `<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><b>${x.nameEn||x.nameZh}<span class="badge">${x.categoryEn||''}</span></b><b style="color:#64d2ff;white-space:nowrap">${dist}</b></div>${zh}<div class="meta">${x.districtEn||''} · ${x.addressEn||x.address||''}</div><div class="meta"><a href="${maps}" target="_blank">Open in Maps ↗</a> · licence ${x.licence}</div></div>`;
+}).join('')+(near.length>30?`<div class="meta">Showing nearest 30 of ${near.length}.</div>`:'');
 }
 
 loadWx();loadBus();locate();
