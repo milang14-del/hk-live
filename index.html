@@ -994,6 +994,7 @@ const p=line.trim().split(',');
 if(p.length<3||!park.byId[p[0]]||seen.has(p[0]))return;
 seen.add(p[0]);
 const e=park.byId[p[0]];e.s.occ=p[2];
+e.m.setStyle({fillColor:p[2]==='V'?'#2ecc71':'#e74c3c'});
 if(p[2]==='V'){gOcc.removeLayer(e.m);gUnk.removeLayer(e.m);gVac.addLayer(e.m);v++;}
 else{gVac.removeLayer(e.m);gUnk.removeLayer(e.m);gOcc.addLayer(e.m);o++;}
 });
