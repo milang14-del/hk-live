@@ -952,11 +952,13 @@ async function initPark(){
 if(park.inited||park.loading)return;
 park.loading=true;
 try{
-if(!window.SPACE_DATA_HK){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='map-data-hk.js';s.onload=res;s.onerror=()=>rej(new Error('meter data file (map-data-hk.js) failed to load'));document.head.appendChild(s);});}
+if(typeof SPACE_DATA_HK==='undefined'){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='map-data-hk.js';s.onload=res;s.onerror=()=>rej(new Error('meter data file (map-data-hk.js) failed to load'));document.head.appendChild(s);});}
+const DATA=(typeof SPACE_DATA_HK!=='undefined')?SPACE_DATA_HK:null;
+if(!DATA)throw new Error('meter data did not initialise');
 const map=L.map('pmap',{preferCanvas:true}).setView([22.34,114.14],11);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',maxZoom:19}).addTo(map);
 const gVac=L.layerGroup(),gOcc=L.layerGroup(),gUnk=L.layerGroup();
-window.SPACE_DATA_HK.forEach(r=>{
+DATA.forEach(r=>{
 const s={id:r[0],lat:r[1],lon:r[2],street:r[3],section:r[4],veh:r[5],max:r[6],op:r[7],fee:r[8],occ:''};
 const m=L.circleMarker([s.lat,s.lon],{radius:5,color:'#333',weight:1,fillColor:'#95a5a6',fillOpacity:.9});
 m.bindPopup(()=>parkPopup(s));
